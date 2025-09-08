@@ -37,7 +37,8 @@
         </section>
         <section class="panel">
           <h2>新能源接入情况（待开发）</h2>
-          <div class="placeholder">Renewable Data Here</div>
+          <!-- <div class="placeholder">Renewable Data Here</div> -->
+           <RenewableEnergy />
         </section>
       </div>
     </div>
@@ -52,6 +53,7 @@ import PowerChart from './components/PowerChart.vue';
 import AlarmList from './components/AlarmList.vue';
 import GridTopology from './components/GridTopology.vue';
 import HeatmapChart from './components/HeatmapChart.vue';
+import RenewableEnergy from './components/RenewableEnergy.vue';
 
 const currentTime = ref('');
 
