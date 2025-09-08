@@ -76,6 +76,86 @@ setInterval(() => {
   console.log("发送热力图数据:", heatmapData);
 }, 5000);
 
+// 🔥 模拟新能源数据 - 更符合实际的缓慢变化
+// 初始化基础值
+let renewableBaseValues = {
+  solar: 125,   // 初始太阳能发电量
+  wind: 280,    // 初始风能发电量
+  hydro: 150,   // 初始水电发电量
+  biomass: 45  // 初始生物质发电量
+};
+
+// 装机容量 - 单位：MW
+const installedCapacity = {
+  solar: 200,   // 太阳能装机容量：200 MW
+  wind: 350,    // 风能装机容量：350 MW
+  hydro: 180,   // 水电装机容量：180 MW
+  biomass: 60   // 生物质装机容量：60 MW
+};
+
+// 模拟昼夜影响的太阳能发电曲线
+function getSolarOutput() {
+  const now = new Date();
+  const hour = now.getHours();
+
+  // 模拟昼夜变化：6-18点有发电，中午最高
+  if (hour >= 6 && hour <= 18) {
+    // 中午12点达到峰值
+    const peakTime = 12;
+    const distanceFromPeak = Math.abs(hour - peakTime);
+    const efficiency = 1 - (distanceFromPeak / 6); // 距离中午越远效率越低
+
+    return Math.round(renewableBaseValues.solar * Math.max(0.2, efficiency));
+  }
+
+  return Math.round(renewableBaseValues.solar * 0.05); // 夜间少量发电（可能有储能）
+}
+
+// 模拟风能变化 - 相对稳定但有波动
+function getWindOutput() {
+  // 基于基础值的±15%波动
+  const variation = (Math.random() * 0.3) - 0.15; // -15% 到 +15%
+  return Math.round(renewableBaseValues.wind * (1 + variation));
+}
+
+// 模拟水电变化 - 相对稳定
+function getHydroOutput() {
+  // 水电相对稳定，只有±5%的波动
+  const variation = (Math.random() * 0.1) - 0.05;
+  return Math.round(renewableBaseValues.hydro * (1 + variation));
+}
+
+// 模拟生物质发电 - 非常稳定
+function getBiomassOutput() {
+  // 生物质发电非常稳定，只有±2%的波动
+  const variation = (Math.random() * 0.04) - 0.02;
+  return Math.round(renewableBaseValues.biomass * (1 + variation));
+}
+
+// 🔥 模拟新能源数据 - 缓慢的基础值变化
+setInterval(() => {
+  // 缓慢调整基础值（模拟季节变化或装机容量增加）
+  if (Math.random() > 0.95) { // 5%的概率调整基础值
+    renewableBaseValues.solar += (Math.random() > 0.5 ? 1 : -1) * 0.5;
+    renewableBaseValues.wind += (Math.random() > 0.5 ? 1 : -1) * 0.3;
+
+    // 确保不会出现负值
+    renewableBaseValues.solar = Math.max(20, Math.min(installedCapacity.solar * 0.95, renewableBaseValues.solar));
+    renewableBaseValues.wind = Math.max(30, Math.min(installedCapacity.wind * 0.95, renewableBaseValues.wind));
+  }
+
+  const renewableData = {
+    solar: getSolarOutput(),
+    wind: getWindOutput(),
+    hydro: getHydroOutput(),
+    biomass: getBiomassOutput(),
+    capacity: installedCapacity // 同时发送装机容量数据
+  };
+
+  io.emit("renewable_update", renewableData);
+  console.log("发送新能源数据:", renewableData);
+}, 10000); // 改为10秒更新一次
+
 // 处理告警相关事件
 io.on('connection', (socket) => {
   console.log('客户端已连接:', socket.id);

@@ -1,5 +1,7 @@
+
 <template>
   <div class="renewable-energy">
+    <!-- 顶部统计摘要 -->
     <div class="energy-summary">
       <div class="summary-item">
         <div class="label">新能源占比</div>
@@ -9,26 +11,49 @@
         </div>
       </div>
       <div class="summary-item">
-        <div class="label">总装机容量</div>
-        <div class="value">{{ totalCapacity }} MW</div>
+        <div class="label">总发电</div>
+        <div class="value">{{ totalOutput }} MW</div>
+        <div class="sub-label">容量: {{ totalCapacity }} MW</div>
       </div>
     </div>
-    
-    <div class="energy-types">
-      <div class="energy-type" v-for="type in energyTypes" :key="type.name">
-        <div class="type-header">
-          <span class="type-name">{{ type.name }}</span>
+
+    <!-- 紧凑型能源类型展示 -->
+    <div class="compact-energy-types">
+      <div v-for="type in energyTypes" :key="type.name" class="compact-energy-item">
+        <div class="compact-header">
+          <span class="type-badge" :style="{ backgroundColor: type.color }"></span>
+          <span class="type-name">{{ type.name.substring(0, 2) }}</span>
           <span class="type-value">{{ type.value }} MW</span>
+          <span class="trend-indicator" :class="getTrendClass(type.name)">
+            {{ getTrendArrow(type.name) }}
+          </span>
         </div>
-        <div class="type-progress">
-          <div class="progress-fill" :style="{ 
-            width: (type.value / type.capacity * 100) + '%',
-            backgroundColor: type.color
-          }"></div>
+        <div class="compact-progress">
+          <div class="progress-text">利用率: {{ Math.round(type.value / type.capacity * 100) }}%</div>
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ 
+              width: (type.value / type.capacity * 100) + '%',
+              backgroundColor: type.color
+            }"></div>
+          </div>
         </div>
-        <div class="type-footer">
-          <span>容量: {{ type.capacity }} MW</span>
-          <span>利用率: {{ Math.round(type.value / type.capacity * 100) }}%</span>
+      </div>
+    </div>
+
+    <!-- 底部统计信息 -->
+    <div class="compact-stats">
+      <div class="stat-item">
+        <div class="stat-icon">📊</div>
+        <div class="stat-content">
+          <div class="stat-value">{{ dailyGeneration }} MWh</div>
+          <div class="stat-label">今日发电</div>
+        </div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon">🌿</div>
+        <div class="stat-content">
+          <div class="stat-value">{{ co2Reduction }} 吨</div>
+          <div class="stat-label">CO₂减排</div>
         </div>
       </div>
     </div>
@@ -36,54 +61,72 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch, onUnmounted } from 'vue';
 import { io } from 'socket.io-client';
 
 const energyData = ref({
-  solar: 0,
-  wind: 0,
-  hydro: 0,
-  biomass: 0
+  solar: 125.8,
+  wind: 283.5,
+  hydro: 156.2,
+  biomass: 45.3
 });
 
-const capacities = {
-  solar: 2000,
-  wind: 1500,
-  hydro: 1000,
-  biomass: 500
-};
+// 装机容量 (MW)
+const capacities = ref({
+  solar: 200,
+  wind: 350,
+  hydro: 180,
+  biomass: 60
+});
+
+// 记录上一次的数据用于计算趋势
+const prevEnergyData = ref({...energyData.value});
+
+// 趋势状态
+const trends = ref({
+  solar: 'stable',
+  wind: 'stable',
+  hydro: 'stable',
+  biomass: 'stable'
+});
+
+// 今日累计发电量 (MWh)
+const dailyGeneration = ref(0);
+// CO₂减排量 (吨)
+const co2Reduction = ref(0);
 
 let socket = null;
+let updateInterval = null;
 
 const energyTypes = computed(() => [
   { 
     name: '太阳能', 
     value: energyData.value.solar, 
-    capacity: capacities.solar,
+    capacity: capacities.value.solar,
     color: '#FFD700'
   },
   { 
     name: '风能', 
     value: energyData.value.wind, 
-    capacity: capacities.wind,
+    capacity: capacities.value.wind,
     color: '#87CEEB'
   },
   { 
     name: '水电', 
     value: energyData.value.hydro, 
-    capacity: capacities.hydro,
+    capacity: capacities.value.hydro,
     color: '#4169E1'
   },
   { 
     name: '生物质', 
     value: energyData.value.biomass, 
-    capacity: capacities.biomass,
+    capacity: capacities.value.biomass,
     color: '#32CD32'
   }
 ]);
 
 const totalCapacity = computed(() => {
-  return Object.values(capacities).reduce((sum, cap) => sum + cap, 0);
+  return Object.values(capacities.value).reduce((sum, cap) => sum + cap, 0);
 });
 
 const totalOutput = computed(() => {
@@ -93,6 +136,53 @@ const totalOutput = computed(() => {
 const renewablePercentage = computed(() => {
   return Math.round((totalOutput.value / totalCapacity.value) * 100);
 });
+
+// 监听数据变化，计算趋势
+watch(energyData, (newData, oldData) => {
+  Object.keys(newData).forEach(key => {
+    const change = newData[key] - oldData[key];
+    if (change > 0.5) {
+      trends.value[key] = 'up';
+    } else if (change < -0.5) {
+      trends.value[key] = 'down';
+    } else {
+      trends.value[key] = 'stable';
+    }
+  });
+  prevEnergyData.value = {...oldData};
+}, { deep: true });
+
+const getTrendClass = (type) => {
+  const key = type === '太阳能' ? 'solar' : 
+             type === '风能' ? 'wind' :
+             type === '水电' ? 'hydro' : 'biomass';
+  return trends.value[key];
+};
+
+const getTrendArrow = (type) => {
+  const key = type === '太阳能' ? 'solar' : 
+             type === '风能' ? 'wind' :
+             type === '水电' ? 'hydro' : 'biomass';
+  
+  switch(trends.value[key]) {
+    case 'up': return '↑';
+    case 'down': return '↓';
+    default: return '→';
+  }
+};
+
+// 更新累计发电量和减排量
+const updateAccumulatedData = () => {
+  // 每10秒更新一次，将功率转换为电量 (MW -> MWh/10s)
+  const hoursIn10Seconds = 10 / 3600;
+  const energyGenerated = totalOutput.value * hoursIn10Seconds;
+  
+  dailyGeneration.value = parseFloat((dailyGeneration.value + energyGenerated).toFixed(1));
+  
+  // 计算CO₂减排量 (假设每MWh减排0.8吨CO₂)
+  const co2ReductionPerMWh = 0.8;
+  co2Reduction.value = parseFloat((dailyGeneration.value * co2ReductionPerMWh).toFixed(1));
+};
 
 onMounted(() => {
   socket = io("http://localhost:8081", {
@@ -105,16 +195,28 @@ onMounted(() => {
   });
 
   socket.on("renewable_update", (data) => {
-    energyData.value = data;
+    energyData.value = {
+      solar: data.solar,
+      wind: data.wind,
+      hydro: data.hydro,
+      biomass: data.biomass
+    };
+    
+    if (data.capacity) {
+      capacities.value = data.capacity;
+    }
   });
 
-  // 初始模拟数据
-  energyData.value = {
-    solar: Math.floor(Math.random() * 1500 + 500),
-    wind: Math.floor(Math.random() * 1200 + 300),
-    hydro: Math.floor(Math.random() * 800 + 200),
-    biomass: Math.floor(Math.random() * 400 + 100)
-  };
+  updateInterval = setInterval(updateAccumulatedData, 10000);
+});
+
+onUnmounted(() => {
+  if (updateInterval) {
+    clearInterval(updateInterval);
+  }
+  if (socket) {
+    socket.disconnect();
+  }
 });
 </script>
 
@@ -123,94 +225,166 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 10px;
 }
 
 .energy-summary {
   display: flex;
   justify-content: space-between;
-  gap: 15px;
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 5px;
 }
 
 .summary-item {
   flex: 1;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 6px;
-  padding: 10px;
+  border-radius: 4px;
+  padding: 8px;
   text-align: center;
 }
 
 .summary-item .label {
-  font-size: 12px;
+  font-size: 11px;
   color: #9eabb3;
-  margin-bottom: 5px;
+  margin-bottom: 3px;
 }
 
 .summary-item .value {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: bold;
   color: #fff;
-  margin-bottom: 8px;
+  margin-bottom: 5px;
+}
+
+.summary-item .sub-label {
+  font-size: 10px;
+  color: #9eabb3;
 }
 
 .progress-bar {
-  height: 6px;
+  height: 4px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  border-radius: 2px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #4CAF50, #8BC34A);
-  border-radius: 3px;
-  transition: width 0.5s ease;
+  border-radius: 2px;
+  transition: width 0.3s ease;
 }
 
-.energy-types {
+.compact-energy-types {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
-.energy-type {
+.compact-energy-item {
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 6px;
-  padding: 10px;
+  border-radius: 4px;
+  padding: 6px;
 }
 
-.type-header {
+.compact-header {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.type-badge {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .type-name {
-  font-size: 14px;
+  font-size: 11px;
   color: #e2e8f0;
+  font-weight: 500;
+  min-width: 20px;
 }
 
 .type-value {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: bold;
   color: #fff;
+  flex: 1;
+  text-align: right;
 }
 
-.type-progress {
-  height: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 6px;
+.trend-indicator {
+  font-size: 12px;
+  font-weight: bold;
+  width: 12px;
+  text-align: center;
 }
 
-.type-footer {
+.trend-indicator.up {
+  color: #4CAF50;
+}
+
+.trend-indicator.down {
+  color: #F44336;
+}
+
+.trend-indicator.stable {
+  color: #FFC107;
+}
+
+.compact-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progress-text {
+  font-size: 10px;
+  color: #9eabb3;
+  min-width: 50px;
+}
+
+.compact-stats {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.stat-item {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-icon {
+  font-size: 14px;
+  width: 20px;
+  text-align: center;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 9px;
   color: #9eabb3;
+  line-height: 1.2;
 }
 </style>
-[file content end]

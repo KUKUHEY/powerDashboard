@@ -36,7 +36,7 @@
            <HeatmapChart />
         </section>
         <section class="panel">
-          <h2>新能源接入情况（待开发）</h2>
+          <h2>新能源接入情况</h2>
           <!-- <div class="placeholder">Renewable Data Here</div> -->
            <RenewableEnergy />
         </section>
