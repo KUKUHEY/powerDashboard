@@ -67,10 +67,39 @@ setInterval(() => {
 setInterval(() => {
   const heatmapData = [
     { name: "北京市", value: Math.round(Math.random() * 5000) },
+    { name: "天津市", value: Math.round(Math.random() * 5000) },
+    { name: "河北省", value: Math.round(Math.random() * 5000) },
+    { name: "山西省", value: Math.round(Math.random() * 5000) },
+    { name: "内蒙古自治区", value: Math.round(Math.random() * 5000) },
+    { name: "辽宁省", value: Math.round(Math.random() * 5000) },
+    { name: "吉林省", value: Math.round(Math.random() * 5000) },
+    { name: "黑龙江省", value: Math.round(Math.random() * 5000) },
     { name: "上海市", value: Math.round(Math.random() * 5000) },
+    { name: "江苏省", value: Math.round(Math.random() * 5000) },
+    { name: "浙江省", value: Math.round(Math.random() * 5000) },
+    { name: "安徽省", value: Math.round(Math.random() * 5000) },
+    { name: "福建省", value: Math.round(Math.random() * 5000) },
+    { name: "江西省", value: Math.round(Math.random() * 5000) },
+    { name: "山东省", value: Math.round(Math.random() * 5000) },
+    { name: "河南省", value: Math.round(Math.random() * 5000) },
+    { name: "湖北省", value: Math.round(Math.random() * 5000) },
+    { name: "湖南省", value: Math.round(Math.random() * 5000) },
     { name: "广东省", value: Math.round(Math.random() * 5000) },
+    { name: "广西壮族自治区", value: Math.round(Math.random() * 5000) },
+    { name: "海南省", value: Math.round(Math.random() * 5000) },
+    { name: "重庆市", value: Math.round(Math.random() * 5000) },
     { name: "四川省", value: Math.round(Math.random() * 5000) },
-    { name: "山东省", value: Math.round(Math.random() * 5000) }
+    { name: "贵州省", value: Math.round(Math.random() * 5000) },
+    { name: "云南省", value: Math.round(Math.random() * 5000) },
+    { name: "西藏自治区", value: Math.round(Math.random() * 5000) },
+    { name: "陕西省", value: Math.round(Math.random() * 5000) },
+    { name: "甘肃省", value: Math.round(Math.random() * 5000) },
+    { name: "青海省", value: Math.round(Math.random() * 5000) },
+    { name: "宁夏回族自治区", value: Math.round(Math.random() * 5000) },
+    { name: "新疆维吾尔自治区", value: Math.round(Math.random() * 5000) },
+    { name: "台湾省", value: Math.round(Math.random() * 5000) },
+    { name: "香港特别行政区", value: Math.round(Math.random() * 5000) },
+    { name: "澳门特别行政区", value: Math.round(Math.random() * 5000) }
   ];
   io.emit("heatmapUpdate", heatmapData);
   console.log("发送热力图数据:", heatmapData);

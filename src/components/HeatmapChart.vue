@@ -37,7 +37,8 @@ const initChart = async () => {
       left: "left",
       bottom: "10%",
       text: ["高负荷", "低负荷"],
-      inRange: { color: ["#50a3ba", "#eac736", "#d94e5d"] },
+      inRange: { color: ['#313695', '#4575b4', '#74add1', '#abd9e9', '#e0f3f8', 
+                '#ffffbf', '#fee090', '#fdae61', '#f46d43', '#d73027', '#a50026'] },
       textStyle: { color: "#fff" }
     },
     series: [
@@ -46,7 +47,17 @@ const initChart = async () => {
         type: "map",
         map: "china",
         roam: true,
-        label: { show: false, color: "#fff" },
+        emphasis: {
+          label: {
+            show: true,
+            color: "#fff"
+          }
+        },
+        itemStyle: {
+          areaColor: "#0f172a", // 默认区域颜色
+          borderColor: "#404a59"
+        },
+        // label: { show: false, color: "#fff" },
         data: []
       }
     ]

@@ -32,12 +32,10 @@
       <div class="right">
         <section class="panel">
           <h2>区域热力图</h2>
-          <!-- <div class="placeholder">Heatmap Here</div> -->
            <HeatmapChart />
         </section>
         <section class="panel">
           <h2>新能源接入情况</h2>
-          <!-- <div class="placeholder">Renewable Data Here</div> -->
            <RenewableEnergy />
         </section>
       </div>

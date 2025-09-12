@@ -10,7 +10,9 @@ import { io } from "socket.io-client";
 const chartRef = ref(null);
 let chartInstance = null;
 let socket = null;
-const loadData = ref(Array(24).fill(0)); // 初始化24小时数据
+const timeData = ref([]);
+const maxDataPoints = 30;
+const loadData = ref([]); // 初始化24小时数据
 
 // 初始化图表
 const initChart = () => {
@@ -30,11 +32,23 @@ const updateChart = () => {
         return `时间: ${params[0].name}<br/>负荷: ${params[0].value}MW`;
       }
     },
+    // xAxis: { 
+    //   type: "category", 
+    //   data: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+    //   axisLine: { lineStyle: { color: '#6b7b8c' } },
+    //   axisLabel: { color: '#9eabb3' }
+    // },
     xAxis: { 
       type: "category", 
-      data: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+      data: timeData.value,
       axisLine: { lineStyle: { color: '#6b7b8c' } },
-      axisLabel: { color: '#9eabb3' }
+      axisLabel: { 
+        color: '#9eabb3',
+        formatter: function(value) {
+          // 只显示分钟和秒，避免过于拥挤
+          return value.substring(11, 19);
+        }
+      }
     },
     yAxis: { 
       type: "value",
@@ -85,11 +99,19 @@ onMounted(() => {
   });
 
   socket.on("update", (data) => {
-    console.log("📡 收到数据:", data);
-    // 更新数据：移除最旧的数据，添加新数据
-    loadData.value.shift();
+    // console.log("📡 收到数据:", data);
+    // // 更新数据：移除最旧的数据，添加新数据
+    // loadData.value.shift();
+    // loadData.value.push(data.load);
+    // 更新数据：添加新数据，如果超过最大点数则移除最旧的数据
+    timeData.value.push(data.timestamp);
     loadData.value.push(data.load);
     
+    if (timeData.value.length > maxDataPoints) {
+      timeData.value.shift();
+      loadData.value.shift();
+    }
+
     updateChart();
   });
 
