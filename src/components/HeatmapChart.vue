@@ -33,7 +33,7 @@ import { io } from "socket.io-client";
 const chartRef = ref(null);
 let chartInstance = null; 
 let socket = null; 
-const selectedYear = ref("2023");
+const selectedYear = ref(null);
 const chartData = ref([]);
 const loading = ref(false);
 
@@ -83,7 +83,7 @@ const updateChart = () => {
       min: 1000,
       max: 6500,
       left: "left",
-      bottom: "10%",
+      bottom: "20%",
       text: ["高负荷", "低负荷"],
       inRange: { 
         color: ['#313695', '#4575b4', '#74add1', '#abd9e9', '#e0f3f8', 
@@ -289,7 +289,9 @@ onBeforeUnmount(() => {
 
 .chart {
   flex: 1;
-  min-height: 400px;
+  min-height: 500px;
+  height: 600px;
+
 }
 
 .loading {
