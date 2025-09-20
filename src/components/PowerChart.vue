@@ -22,22 +22,12 @@ const initChart = () => {
 
 const updateChart = () => {
   const option = {
-    title: { 
-      text: "实时电网负荷", 
-      textStyle: { color: "#fff" } 
-    },
     tooltip: {
       trigger: 'axis',
       formatter: (params) => {
         return `时间: ${params[0].name}<br/>负荷: ${params[0].value}MW`;
       }
     },
-    // xAxis: { 
-    //   type: "category", 
-    //   data: Array.from({ length: 24 }, (_, i) => `${i}:00`),
-    //   axisLine: { lineStyle: { color: '#6b7b8c' } },
-    //   axisLabel: { color: '#9eabb3' }
-    // },
     xAxis: { 
       type: "category", 
       data: timeData.value,
@@ -99,11 +89,6 @@ onMounted(() => {
   });
 
   socket.on("update", (data) => {
-    // console.log("📡 收到数据:", data);
-    // // 更新数据：移除最旧的数据，添加新数据
-    // loadData.value.shift();
-    // loadData.value.push(data.load);
-    // 更新数据：添加新数据，如果超过最大点数则移除最旧的数据
     timeData.value.push(data.timestamp);
     loadData.value.push(data.load);
     
@@ -130,8 +115,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .chart {
   width: 100%;
-  height: 400px;
-  background: rgba(255, 255, 255, 0.05);
+  min-height: 300px; 
+  height: auto;
   border-radius: 4px;
 }
 </style>

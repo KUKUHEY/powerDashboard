@@ -22,11 +22,6 @@ const initChart = async () => {
   echarts.registerMap("china", geoJson);
 
   chartInstance.setOption({
-    title: {
-      text: "区域电力负荷热力图",
-      left: "center",
-      textStyle: { color: "#fff", fontSize: 16 }
-    },
     tooltip: {
       trigger: "item",
       formatter: params => `${params.name}<br/>负荷: ${params.value || 0} MW`
@@ -57,7 +52,6 @@ const initChart = async () => {
           areaColor: "#0f172a", // 默认区域颜色
           borderColor: "#404a59"
         },
-        // label: { show: false, color: "#fff" },
         data: []
       }
     ]
@@ -98,6 +92,6 @@ onBeforeUnmount(() => {
 <style scoped>
 .chart {
   width: 100%;
-  height: 100%;
+  height: 700px;
 }
 </style>

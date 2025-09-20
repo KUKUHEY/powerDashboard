@@ -14,29 +14,35 @@
         <section class="panel load-chart">
           <h2>实时电网负荷</h2>
           <PowerChart />
+          <div class="panel-footer"></div>
         </section>
         <section class="panel alarm-list">
           <AlarmList />
+          <div class="panel-footer"></div>
         </section>
       </div>
 
       <!-- 中间 -->
       <div class="center">
-        <section class="panel">
-          <h2>电网拓扑图</h2>
-           <GridTopology />
+        <section class="panel">       
+           <h2>区域热力图</h2>
+           <HeatmapChart />
+          <div class="panel-footer"></div>
         </section>
       </div>
-
       <!-- 右侧 -->
       <div class="right">
         <section class="panel">
-          <h2>区域热力图</h2>
-           <HeatmapChart />
+          <!-- <h2>区域热力图</h2>
+           <HeatmapChart /> -->
+           <h2>电网拓扑图</h2>
+           <GridTopology />
+          <div class="panel-footer"></div>
         </section>
         <section class="panel">
           <h2>新能源接入情况</h2>
            <RenewableEnergy />
+          <div class="panel-footer"></div>
         </section>
       </div>
     </div>
@@ -71,6 +77,7 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
 }
 
 .background {
@@ -79,14 +86,14 @@ html, body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: url('../public/images/image.png') no-repeat center center;
-  background-size: cover; /* 背景铺满 */
-  overflow: hidden;
+  background: url('../public/images/image.png') no-repeat top center;
+  background-size: cover; 
+  /* overflow: hidden; */
 }
 
 .dashboard {
-   height: 100%; /* 仪表盘占满背景容器 */
-  background-color: rgba(11, 19, 43, 0.9); /* 半透明背景 */
+  height: 100%; /* 仪表盘占满背景容器 */
+  background-color: rgba(11, 19, 43, 0.8); /* 半透明背景 */
   color: #fff;
   overflow: hidden;
   border-radius: 8px;
@@ -96,31 +103,37 @@ html, body {
 
 /* 顶部栏 */
 .header {
-  height: 60px;
-  background-color: #1c2541;
+  position: relative;
+  height: 75px;
   display: flex;
+  justify-content: center;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  font-size: 15px;
-  border-bottom: 2px solid #3a506b;
-  flex-shrink: 0;
+  background: url(../images/head_bg.png) no-repeat;
+  background-size: 100% 100%;
 }
 
-.time {
-  font-size: 15px;
-  color: #9eabb3;
+.header h1 {
+  font-size: 38px;
+  color: #fff;
+}
+
+.header .time {
+  position: absolute;
+  font-size: 20px;
+  right: 30px;
+  top: 0;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 75px;
 }
 
 /* 主体三列 */
 .main {
-  flex: 1;
   display: flex;
+  min-width: 1024px;
+  max-width: 1920px;
   gap: 10px;
-  padding: 10px;
-  box-sizing: border-box;
-  height: calc(100% - 60px); /* 减去顶部栏高度 */
-  /* overflow-x: hidden; */
+  padding: 10px 10px 0;
+  height: calc(100% - 75px); 
 }
 
 /* 三列设置 */
@@ -128,29 +141,76 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  height: 100%;
+  /* height: 100%; */
   min-width: 0;
 }
 
-.left { 
-  flex: 1;
-
-}   /* 左列占1份 */
-.center { flex: 2; } /* 中列占2份 */
-.right { flex: 1; }  /* 右列占1份 */
+.left { flex: 2;}   
+.center { flex: 3; } /* 中列占2份 */
+.right { flex: 2; }  /* 右列占1份 */
 
 
 /* 模块面板 */
 .panel {
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 10px;
+  position: relative;
+  height: 310px;
+  background: url(../images/line.png) rgba(255, 255, 255, 0.03);
+  padding: 0 15px 40px;
   flex: 1;
   display: flex;
+  border: 1px solid rgba(25, 186, 139, 0.17);
   flex-direction: column;
-  /* min-height: 0;  */
-  /* 关键：防止溢出导致滚动条 */
-  box-sizing: border-box;
+}
+
+.panel::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid #02a6b5;
+  border-left: 2px solid #02a6b5;
+}
+
+.panel::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid #02a6b5;
+  border-right: 2px solid #02a6b5;
+}
+
+.panel .panel-footer {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+}
+
+.panel .panel-footer::before {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-bottom: 2px solid #02a6b5;
+  border-left: 2px solid #02a6b5;
+}
+
+.panel .panel-footer::after {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-bottom: 2px solid #02a6b5;
+  border-right: 2px solid #02a6b5;
 }
 
 .panel h2 {
@@ -160,16 +220,12 @@ html, body {
   padding-bottom: 5px;
 }
 
-.placeholder {
+/* .placeholder {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #888;
-}
-
- .alarm-list{
-  min-height: 0;
- }
+} */
 
 </style>

@@ -151,8 +151,8 @@ onMounted(() => {
 
 <style scoped>
 .alarm-list-container {
-  background: rgba(15, 23, 42, 0.8);
-  border-radius: 6px;
+  /* background: rgba(15, 23, 42, 0.8); */
+  /* border-radius: 6px; */
   padding: 15px;
   height: 100%;
   display: flex;
@@ -166,13 +166,13 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 15px;
   padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .alarm-header h2 {
   margin: 0;
-  font-size: 18px;
-  color: #e2e8f0;
+  font-size: 16px;
+  color: #fff;
 }
 
 .alarm-stats {
@@ -182,7 +182,7 @@ onMounted(() => {
 }
 
 .total {
-  color: #94a3b8;
+  color: #fff;
 }
 
 .unhandled {
@@ -193,14 +193,14 @@ onMounted(() => {
 .alarm-filters {
   display: flex;
   gap: 10px;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
 }
 
 .alarm-filters button {
-  background: rgba(71, 85, 105, 0.3);
+  background: rgba(71, 85, 105, 0.4);
   border: none;
-  color: #e2e8f0;
-  padding: 5px 12px;
+  color: #fff;
+  padding: 5px 15px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
@@ -208,11 +208,11 @@ onMounted(() => {
 }
 
 .alarm-filters button.active {
-  background: #3b82f6;
+  background: rgb(41, 88, 163);
 }
 
 .alarm-filters button:hover:not(.active) {
-  background: rgba(71, 85, 105, 0.5);
+  background: rgba(71, 85, 105, 0.6);
 }
 
 .alarm-items {
@@ -220,7 +220,7 @@ onMounted(() => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   padding-right: 5px;
 }
 
