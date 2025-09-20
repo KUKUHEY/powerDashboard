@@ -185,6 +185,32 @@ setInterval(() => {
   console.log("发送新能源数据:", renewableData);
 }, 10000); // 改为10秒更新一次
 
+// 在mock-server.js的setInterval后面添加
+const DEVICE_COUNT = 1500;
+let onlineDevices = Math.floor(DEVICE_COUNT * 0.97);
+
+// 模拟设备状态变化
+setInterval(() => {
+  // 随机设备上下线
+  const changeCount = Math.floor(Math.random() * 15);
+  const shouldGoOnline = Math.random() > 0.4;
+
+  if (shouldGoOnline) {
+    onlineDevices = Math.min(DEVICE_COUNT, onlineDevices + changeCount);
+  } else {
+    onlineDevices = Math.max(0, onlineDevices - changeCount);
+  }
+
+  // 发送设备状态数据
+  const deviceData = {
+    online: onlineDevices,
+    rate: (onlineDevices / DEVICE_COUNT * 100).toFixed(1)
+  };
+
+  io.emit('device_status', deviceData);
+}, 10000); // 10秒更新一次
+
+
 // 处理告警相关事件
 io.on('connection', (socket) => {
   console.log('客户端已连接:', socket.id);

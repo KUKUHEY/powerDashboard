@@ -24,6 +24,8 @@
 
       <!-- 中间 -->
       <div class="center">
+        <!-- 在线设备状态卡片 -->
+          <DeviceStatus />
         <section class="panel">       
            <h2>区域热力图</h2>
            <HeatmapChart />
@@ -58,6 +60,7 @@ import AlarmList from './components/AlarmList.vue';
 import GridTopology from './components/GridTopology.vue';
 import HeatmapChart from './components/HeatmapChart.vue';
 import RenewableEnergy from './components/RenewableEnergy.vue';
+import DeviceStatus from './components/DeviceStatus.vue';
 
 const currentTime = ref('');
 
@@ -146,7 +149,11 @@ html, body {
 }
 
 .left { flex: 2;}   
-.center { flex: 3; } /* 中列占2份 */
+
+.center { 
+  flex: 3;
+  display: flex;
+ } /* 中列占2份 */
 .right { flex: 2; }  /* 右列占1份 */
 
 
@@ -220,12 +227,11 @@ html, body {
   padding-bottom: 5px;
 }
 
-/* .placeholder {
+.device-status-panel{
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #888;
-} */
+}
 
+.center .panel:not(.device-status-panel) {
+  flex: 4;
+}
 </style>
