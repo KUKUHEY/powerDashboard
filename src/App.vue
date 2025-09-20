@@ -27,7 +27,7 @@
         <!-- 在线设备状态卡片 -->
           <DeviceStatus />
         <section class="panel">       
-           <h2>区域热力图</h2>
+           <h2>全国电力分布图</h2>
            <HeatmapChart />
           <div class="panel-footer"></div>
         </section>
@@ -91,7 +91,6 @@ html, body {
   height: 100%;
   background: url('../public/images/image.png') no-repeat top center;
   background-size: cover; 
-  /* overflow: hidden; */
 }
 
 .dashboard {
@@ -144,7 +143,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  /* height: 100%; */
+  height: 100%;
   min-width: 0;
 }
 
