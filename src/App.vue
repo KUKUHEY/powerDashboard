@@ -54,13 +54,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import PowerChart from './components/PowerChart.vue';
 import AlarmList from './components/AlarmList.vue';
 import GridTopology from './components/GridTopology.vue';
 import HeatmapChart from './components/HeatmapChart.vue';
 import RenewableEnergy from './components/RenewableEnergy.vue';
 import DeviceStatus from './components/DeviceStatus.vue';
+import { useWebSocketStore } from './stores/websocket'
+
+const wsStore = useWebSocketStore()
 
 const currentTime = ref('');
 
@@ -69,9 +72,18 @@ const updateTime = () => {
 };
 
 onMounted(() => {
+  // 应用启动时连接 WebSocket
+  wsStore.connect()
+
+  
   updateTime();
   setInterval(updateTime, 1000);
 });
+
+onUnmounted(() => {
+  // 应用卸载时断开连接
+  wsStore.disconnect()
+})
 
 </script>
 

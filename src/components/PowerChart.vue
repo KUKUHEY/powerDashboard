@@ -1,42 +1,57 @@
 <template>
-  <div ref="chartRef" class="chart"></div>
+  <div ref="chartRef" class="chart">
+    <div v-if="powerStore.status.type === 'error'" class="chart-error">
+      {{ powerStore.status.message }}
+    </div>
+    <div v-else-if="powerStore.status.type === 'empty'" class="chart-empty">
+      {{ powerStore.status.message }}
+    </div>
+    <div v-else-if="powerStore.status.type === 'loading'" class="chart-loading">
+      {{ powerStore.status.message }}
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from "vue";
-import * as echarts from "echarts";
-import { io } from "socket.io-client";
+import { ref, onMounted, onBeforeUnmount, watch } from "vue"
+import * as echarts from "echarts"
+import { usePowerStore } from '../stores/power'
+import { useWebSocketStore } from '../stores/websocket'
 
-const chartRef = ref(null);
-let chartInstance = null;
-let socket = null;
-const timeData = ref([]);
-const maxDataPoints = 30;
-const loadData = ref([]); // 初始化24小时数据
+const chartRef = ref(null)
+let chartInstance = null
+
+const powerStore = usePowerStore()
+const wsStore = useWebSocketStore()
 
 // 初始化图表
 const initChart = () => {
-  chartInstance = echarts.init(chartRef.value);
-  updateChart();
-};
+  if (!chartRef.value) return
+  
+  chartInstance = echarts.init(chartRef.value)
+  updateChart()
+}
 
+// 更新图表
 const updateChart = () => {
+  if (!chartInstance || !powerStore.hasData) return
+
   const option = {
     tooltip: {
       trigger: 'axis',
       formatter: (params) => {
-        return `时间: ${params[0].name}<br/>负荷: ${params[0].value}MW`;
+        return `时间: ${params[0].name}<br/>负荷: ${params[0].value}MW`
       }
     },
     xAxis: { 
       type: "category", 
-      data: timeData.value,
+      data: powerStore.timeData,
       axisLine: { lineStyle: { color: '#6b7b8c' } },
       axisLabel: { 
         color: '#9eabb3',
         formatter: function(value) {
           // 只显示分钟和秒，避免过于拥挤
-          return value.substring(11, 19);
+          return value.substring(11, 19)
         }
       }
     },
@@ -50,7 +65,7 @@ const updateChart = () => {
     },
     series: [{ 
       type: "line", 
-      data: loadData.value,
+      data: powerStore.loadData,
       smooth: true,
       lineStyle: {
         width: 3,
@@ -66,51 +81,39 @@ const updateChart = () => {
         ])
       }
     }]
-  };
+  }
   
-  chartInstance.setOption(option);
-};
+  chartInstance.setOption(option)
+}
+
+// 监听数据变化，自动更新图表
+watch(() => powerStore.loadData, () => {
+  updateChart()
+}, { deep: true })
 
 onMounted(() => {
-  initChart();
-
-  // 连接 WebSocket
-  socket = io("http://localhost:8081", {
-  transports: ['websocket'], // 明确传输方式
-  withCredentials: true, // 如果需要凭证
-});
-
-  socket.on("connect", () => {
-    console.log("✅ WebSocket connected:");
-  });
-
-  socket.on("connect_error", (err) => {
-    console.error("❌ WebSocket connect_error:", err.message);
-  });
-
-  socket.on("update", (data) => {
-    timeData.value.push(data.timestamp);
-    loadData.value.push(data.load);
-    
-    if (timeData.value.length > maxDataPoints) {
-      timeData.value.shift();
-      loadData.value.shift();
-    }
-
-    updateChart();
-  });
-
+  initChart()
+  
+  // 初始化 WebSocket 连接
+  wsStore.connect()
+  // 初始化数据监听
+  powerStore.init()
+  
   window.addEventListener("resize", () => {
-    chartInstance && chartInstance.resize();
-  });
-});
+    chartInstance && chartInstance.resize()
+  })
+})
 
 onBeforeUnmount(() => {
-  socket && socket.disconnect();
-  chartInstance && chartInstance.dispose();
-});
+  // 清理事件监听
+  wsStore.off('update', powerStore.addDataPoint)
+  wsStore.off('connect', powerStore.handleConnect)
+  wsStore.off('connect_error', powerStore.handleConnectError)
+  wsStore.off('disconnect', powerStore.handleDisconnect)
+  
+  chartInstance && chartInstance.dispose()
+})
 </script>
-
 
 <style scoped>
 .chart {
@@ -118,5 +121,26 @@ onBeforeUnmount(() => {
   min-height: 300px; 
   height: auto;
   border-radius: 4px;
+  position: relative;
+}
+
+.chart-error,
+.chart-empty,
+.chart-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+}
+
+.chart-error {
+  color: #f87171;
+}
+
+.chart-loading {
+  color: #60a5fa;
 }
 </style>
