@@ -67,29 +67,24 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { io } from 'socket.io-client';
+import { ref, computed, onMounted,onUnmounted } from 'vue';
+// import { io } from 'socket.io-client';
+import { useAlarmStore } from '../stores/alarm';
+import { useWebSocketStore } from '../stores/websocket';
 
-const alarms = ref([]);
-const filter = ref('all');
-let socket = null;
+const alarmStore = useAlarmStore();
+const wsStore = useWebSocketStore();
 
-// 计算未处理告警数量
-const unhandledCount = computed(() => {
-  return alarms.value.filter(alarm => !alarm.handled).length;
-});
+// 计算属性
+const alarms = computed(() => alarmStore.alarms);
+const unhandledCount = computed(() => alarmStore.unhandledCount);
+const filteredAlarms = computed(() => alarmStore.filteredAlarms);
+const filter = computed({
+  get: () => alarmStore.filter,
+  set: (value) => alarmStore.setFilter(value)
+})
 
-// 根据筛选条件过滤告警
-const filteredAlarms = computed(() => {
-  if (filter.value === 'unhandled') {
-    return alarms.value.filter(alarm => !alarm.handled);
-  } else if (filter.value === 'handled') {
-    return alarms.value.filter(alarm => alarm.handled);
-  }
-  // 默认显示所有，按时间倒序排列
-  return [...alarms.value].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-});
-
+// 方法
 // 格式化时间显示
 const formatTime = (timestamp) => {
   const date = new Date(timestamp);
@@ -103,50 +98,90 @@ const formatTime = (timestamp) => {
   });
 };
 
-// 标记告警为已处理
 const handleAlarm = (alarmId) => {
-  socket.emit('handle_alarm', alarmId);
-};
+  alarmStore.handleAlarm(alarmId);
+}
+
+// const alarms = ref([]);
+// const filter = ref('all');
+// let socket = null;
+
+// 计算未处理告警数量
+// const unhandledCount = computed(() => {
+//   return alarms.value.filter(alarm => !alarm.handled).length;
+// });
+
+// 根据筛选条件过滤告警
+// const filteredAlarms = computed(() => {
+//   if (filter.value === 'unhandled') {
+//     return alarms.value.filter(alarm => !alarm.handled);
+//   } else if (filter.value === 'handled') {
+//     return alarms.value.filter(alarm => alarm.handled);
+//   }
+//   // 默认显示所有，按时间倒序排列
+//   return [...alarms.value].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+// });
+
+
+
+// 标记告警为已处理
+// const handleAlarm = (alarmId) => {
+//   socket.emit('handle_alarm', alarmId);
+// };
+
+// onMounted(() => {
+//   // 连接到服务器
+//   socket = io("http://localhost:8081", {
+//     transports: ['websocket'],
+//     withCredentials: true
+//   });
+  
+//   // 监听连接事件
+//   socket.on('connect', () => {
+//     console.log('✅ 已连接到告警服务器');
+//     // 请求历史告警
+//     socket.emit('request_alarm_history');
+//   });
+  
+//   // 监听新告警
+//   socket.on('alarm', (alarm) => {
+//     console.log('收到新告警:', alarm);
+//     alarms.value.unshift(alarm); // 添加到数组开头
+//   });
+  
+//   // 接收历史告警
+//   socket.on('alarm_history', (history) => {
+//     console.log('收到历史告警:', history);
+//     alarms.value = history;
+//   });
+  
+//   // 监听告警状态更新
+//   socket.on('alarm_updated', (updatedAlarm) => {
+//     const index = alarms.value.findIndex(a => a.id === updatedAlarm.id);
+//     if (index !== -1) {
+//       alarms.value[index] = updatedAlarm;
+//     }
+//   });
+  
+//   // 监听连接错误
+//   socket.on('connect_error', (err) => {
+//     console.error('❌ 告警服务器连接错误:', err);
+//   });
+// });
 
 onMounted(() => {
-  // 连接到服务器
-  socket = io("http://localhost:8081", {
-    transports: ['websocket'],
-    withCredentials: true
-  });
-  
-  // 监听连接事件
-  socket.on('connect', () => {
-    console.log('✅ 已连接到告警服务器');
-    // 请求历史告警
-    socket.emit('request_alarm_history');
-  });
-  
-  // 监听新告警
-  socket.on('alarm', (alarm) => {
-    console.log('收到新告警:', alarm);
-    alarms.value.unshift(alarm); // 添加到数组开头
-  });
-  
-  // 接收历史告警
-  socket.on('alarm_history', (history) => {
-    console.log('收到历史告警:', history);
-    alarms.value = history;
-  });
-  
-  // 监听告警状态更新
-  socket.on('alarm_updated', (updatedAlarm) => {
-    const index = alarms.value.findIndex(a => a.id === updatedAlarm.id);
-    if (index !== -1) {
-      alarms.value[index] = updatedAlarm;
-    }
-  });
-  
-  // 监听连接错误
-  socket.on('connect_error', (err) => {
-    console.error('❌ 告警服务器连接错误:', err);
-  });
-});
+  // 初始化 WebSocket 连接
+  wsStore.connect()
+  // 初始化告警监听
+  alarmStore.init()
+})
+
+onUnmounted(() => {
+  // 清理事件监听
+  wsStore.off('alarm', alarmStore.addAlarm)
+  wsStore.off('alarm_history', alarmStore.setAlarms)
+  wsStore.off('alarm_updated', alarmStore.updateAlarm)
+})
 </script>
 
 <style scoped>

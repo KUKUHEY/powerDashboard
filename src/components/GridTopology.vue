@@ -1,473 +1,450 @@
 <template>
-  <div class="topology-container">
-    <div class="topology-controls">
-      <button @click="zoomIn" class="control-btn">+ 放大</button>
-      <button @click="zoomOut" class="control-btn">- 缩小</button>
-      <button @click="resetView" class="control-btn">重置视图</button>
-      <div class="status-legend">
-        <span><span class="status-dot normal"></span> 正常</span>
-        <span><span class="status-dot warning"></span> 预警</span>
-        <span><span class="status-dot error"></span> 故障</span>
+  <div class="grid-topology-compact">
+    <!-- 紧凑型控制栏 -->
+    <div class="compact-controls">
+      <div class="controls-left">
+        <div class="mini-buttons">
+          <button @click="zoomIn" class="mini-btn" title="放大">➕</button>
+          <button @click="zoomOut" class="mini-btn" title="缩小">➖</button>
+          <button @click="resetView" class="mini-btn" title="重置">🔄</button>
+        </div>
+      </div>
+      
+      <div class="controls-right">
+        <div class="status-indicators">
+          <span class="status-dot normal"></span>
+          <span class="status-count">{{ stats.normal }}</span>
+          <span class="status-dot warning"></span>
+          <span class="status-count">{{ stats.warning }}</span>
+          <span class="status-dot error"></span>
+          <span class="status-count">{{ stats.error }}</span>
+        </div>
+        
+        <select v-model="activeFilter" class="filter-select">
+          <option value="all">全部状态</option>
+          <option value="normal">正常</option>
+          <option value="warning">预警</option>
+          <option value="error">故障</option>
+        </select>
       </div>
     </div>
-    
-    <div class="topology-svg-container" ref="svgContainer">
-      <svg 
-        :width="svgWidth" 
-        :height="svgHeight"
-        :viewBox="viewBox"
-        @click="handleSvgClick"
-      >
-        <!-- 背景网格 -->
-        <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-          <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
-        </pattern>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-        
-        <!-- 输电线路 -->
-        <g>
-          <line v-for="(line, index) in lines" :key="index"
-                :x1="line.from.x" :y1="line.from.y"
-                :x2="line.to.x" :y2="line.to.y"
-                :stroke="getLineColor(line)"
-                :stroke-width="line.load > 80 ? 3 : 2"
-                :stroke-dasharray="line.status === 'warning' ? '5,5' : 'none'"
-                class="power-line"
-          />
-          <circle v-for="(line, index) in lines" :key="'load' + index"
-                  :cx="(line.from.x + line.to.x) / 2"
-                  :cy="(line.from.y + line.to.y) / 2"
-                  r="10"
-                  fill="rgba(11, 19, 43, 0.8)"
-          >
-            <title>线路负荷: {{ line.load }}%</title>
-          </circle>
-          <text v-for="(line, index) in lines" :key="'text' + index"
-                :x="(line.from.x + line.to.x) / 2"
-                :y="(line.from.y + line.to.y) / 2 + 4"
-                text-anchor="middle"
-                fill="#fff"
-                font-size="10"
-          >
-            {{ line.load }}%
-          </text>
-        </g>
-        
-        <!-- 变电站节点 -->
-        <g>
-          <g v-for="(substation, index) in substations" :key="index"
-             :transform="`translate(${substation.x}, ${substation.y})`"
-             class="substation-node"
-             @click.stop="selectNode('substation', index)"
-          >
-            <rect x="-30" y="-20" width="60" height="40" 
-                  rx="5" 
-                  :fill="getNodeColor(substation.status)"
-                  :stroke="substation === selectedNode ? '#00ffff' : 'rgba(255,255,255,0.3)'"
-                  :stroke-width="substation === selectedNode ? 2 : 1"
-            />
-            <text x="0" y="5" text-anchor="middle" fill="#fff" font-size="12">{{ substation.name }}</text>
-            <title>{{ substation.name }} - 状态: {{ formatStatus(substation.status) }}</title>
-          </g>
-        </g>
-        
-        <!-- 发电站节点 -->
-        <g>
-          <g v-for="(plant, index) in powerPlants" :key="index"
-             :transform="`translate(${plant.x}, ${plant.y})`"
-             class="power-plant-node"
-             @click.stop="selectNode('plant', index)"
-          >
-            <circle cx="0" cy="0" r="25" 
-                  :fill="getNodeColor(plant.status)"
-                  :stroke="plant === selectedNode ? '#00ffff' : 'rgba(255,255,255,0.3)'"
-                  :stroke-width="plant === selectedNode ? 2 : 1"
-            />
-            <text x="0" y="5" text-anchor="middle" fill="#fff" font-size="12">{{ plant.name }}</text>
-            <title>{{ plant.name }} - 状态: {{ formatStatus(plant.status) }} - 出力: {{ plant.output }}MW</title>
-          </g>
-        </g>
-        
-        <!-- 负载中心节点 -->
-        <g>
-          <g v-for="(load, index) in loadCenters" :key="index"
-             :transform="`translate(${load.x}, ${load.y})`"
-             class="load-center-node"
-             @click.stop="selectNode('load', index)"
-          >
-            <polygon points="0,-20 20,10 -20,10" 
-                  :fill="getNodeColor(load.status)"
-                  :stroke="load === selectedNode ? '#00ffff' : 'rgba(255,255,255,0.3)'"
-                  :stroke-width="load === selectedNode ? 2 : 1"
-            />
-            <text x="0" y="25" text-anchor="middle" fill="#fff" font-size="12">{{ load.name }}</text>
-            <title>{{ load.name }} - 状态: {{ formatStatus(load.status) }} - 负载: {{ load.load }}MW</title>
-          </g>
-        </g>
-      </svg>
-    </div>
-    
-    <!-- 节点详情信息 -->
-    <div v-if="selectedNode" class="node-details">
-      <h3>{{ selectedNode.name }} 详情</h3>
-      <div class="detail-item"><span>类型:</span> {{ getNodeType() }}</div>
-      <div class="detail-item"><span>状态:</span> <span :class="`status-label ${selectedNode.status}`">{{ formatStatus(selectedNode.status) }}</span></div>
-      <div v-if="selectedNode.output" class="detail-item"><span>当前出力:</span> {{ selectedNode.output }} MW</div>
-      <div v-if="selectedNode.load" class="detail-item"><span>当前负载:</span> {{ selectedNode.load }} MW</div>
-      <div class="detail-item"><span>最后更新:</span> {{ selectedNode.lastUpdate }}</div>
-      <button @click="deselectNode" class="close-details">关闭详情</button>
+
+    <!-- 拓扑图容器 -->
+    <div ref="chartContainer" class="compact-chart-container"></div>
+
+    <!-- 简化的节点提示 -->
+    <div v-if="hoverNode" class="node-tooltip">
+      <div class="tooltip-header">
+        <strong>{{ hoverNode.name }}</strong>
+        <span :class="['status-badge', hoverNode.status]">{{ formatStatus(hoverNode.status) }}</span>
+      </div>
+      <div class="tooltip-content">
+        {{ getNodeType(hoverNode) }} · {{ hoverNode.value }}MW
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
+import * as echarts from 'echarts';
 import { io } from 'socket.io-client';
 
-// 拓扑图尺寸和缩放控制
-const svgWidth = ref(800);
-const svgHeight = ref(500);
-const scale = ref(1);
-const translateX = ref(0);
-const translateY = ref(0);
-const viewBox = ref(`${-svgWidth.value/2} ${-svgHeight.value/2} ${svgWidth.value} ${svgHeight.value}`);
-const svgContainer = ref(null);
-const isDragging = ref(false);
-const dragStart = ref({ x: 0, y: 0 });
+const chartContainer = ref(null);
+let chartInstance = null;
+let socket = null;
+const hoverNode = ref(null);
+const activeFilter = ref('all');
 
-// 节点选择状态
-const selectedNode = ref(null);
+const topologyData = ref({
+  nodes: [],
+  links: []
+});
 
-// 电网拓扑数据
-const powerPlants = ref([
-  { id: 1, name: '发电站A', x: -300, y: -150, status: 'normal', output: 850, lastUpdate: '' },
-  { id: 2, name: '发电站B', x: -300, y: 150, status: 'normal', output: 620, lastUpdate: '' }
-]);
-
-const substations = ref([
-  { id: 1, name: '变电站1', x: -100, y: -100, status: 'normal', lastUpdate: '' },
-  { id: 2, name: '变电站2', x: -100, y: 0, status: 'warning', lastUpdate: '' },
-  { id: 3, name: '变电站3', x: -100, y: 100, status: 'normal', lastUpdate: '' }
-]);
-
-const loadCenters = ref([
-  { id: 1, name: '负荷中心A', x: 200, y: -150, status: 'normal', load: 420, lastUpdate: '' },
-  { id: 2, name: '负荷中心B', x: 200, y: 0, status: 'normal', load: 380, lastUpdate: '' },
-  { id: 3, name: '负荷中心C', x: 200, y: 150, status: 'error', load: 510, lastUpdate: '' }
-]);
-
-const lines = ref([
-  // 发电站到变电站
-  { from: { x: -300, y: -150 }, to: { x: -100, y: -100 }, status: 'normal', load: 65 },
-  { from: { x: -300, y: 150 }, to: { x: -100, y: 100 }, status: 'normal', load: 58 },
-  { from: { x: -300, y: 150 }, to: { x: -100, y: 0 }, status: 'warning', load: 89 },
+// 在script setup部分添加固定位置数据
+const fixedPositions = ref({
+  // 发电厂节点 - 布置在左侧
+  'plant-1': { x: 100, y: 80 },
+  'plant-2': { x: 100, y: 160 },
+  'plant-3': { x: 100, y: 240 },
+  'plant-4': { x: 100, y: 320 },
   
-  // 变电站之间
-  { from: { x: -100, y: -100 }, to: { x: -100, y: 0 }, status: 'normal', load: 42 },
-  { from: { x: -100, y: 0 }, to: { x: -100, y: 100 }, status: 'normal', load: 35 },
+  // 变电站节点 - 布置在中间
+  'sub-1': { x: 300, y: 100 },
+  'sub-2': { x: 300, y: 200 },
+  'sub-3': { x: 300, y: 300 },
+  'sub-4': { x: 400, y: 150 },
+  'sub-5': { x: 400, y: 250 },
   
-  // 变电站到负荷中心
-  { from: { x: -100, y: -100 }, to: { x: 200, y: -150 }, status: 'normal', load: 52 },
-  { from: { x: -100, y: 0 }, to: { x: 200, y: 0 }, status: 'normal', load: 68 },
-  { from: { x: -100, y: 100 }, to: { x: 200, y: 150 }, status: 'error', load: 92 }
-]);
+  // 负荷中心节点 - 布置在右侧
+  'load-1': { x: 600, y: 80 },
+  'load-2': { x: 600, y: 160 },
+  'load-3': { x: 600, y: 240 },
+  'load-4': { x: 600, y: 320 }
+});
 
-// 缩放控制函数
+
+// 计算统计信息
+const stats = computed(() => {
+  const nodes = topologyData.value.nodes;
+  return {
+    normal: nodes.filter(n => n.status === 'normal').length,
+    warning: nodes.filter(n => n.status === 'warning').length,
+    error: nodes.filter(n => n.status === 'error').length
+  };
+});
+
+// 筛选后的数据
+const filteredData = computed(() => {
+  if (activeFilter.value === 'all') return topologyData.value;
+
+  const filteredNodes = topologyData.value.nodes.filter(node => 
+    node.status === activeFilter.value
+  );
+  
+  const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
+  const filteredLinks = topologyData.value.links.filter(link =>
+    filteredNodeIds.has(link.source) && filteredNodeIds.has(link.target)
+  );
+
+  return { nodes: filteredNodes, links: filteredLinks };
+});
+
+// 初始化图表
+const initChart = () => {
+  if (!chartContainer.value) return;
+  chartInstance = echarts.init(chartContainer.value);
+  updateChart();
+};
+
+// 更新图表 - 简化版本
+const updateChart = () => {
+  if (!chartInstance || !topologyData.value.nodes.length) return;
+
+  // 为每个节点设置固定位置
+  const nodesWithFixedPositions = filteredData.value.nodes.map(node => {
+    const fixedPos = fixedPositions.value[node.id];
+    return {
+      ...node,
+      symbolSize: getCompactSymbolSize(node),
+      itemStyle: {
+        color: getNodeColor(node)
+      },
+      symbol: getNodeSymbol(node),
+      x: fixedPos ? fixedPos.x : Math.random() * 500, // 备用随机位置
+      y: fixedPos ? fixedPos.y : Math.random() * 300,
+      fixed: true // 关键：固定节点位置
+    };
+  });
+
+
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      show: false
+    },
+    series: [{
+      type: 'graph',
+      layout: null,
+      force: null,
+      roam: true,
+      focusNodeAdjacency: true,
+      label: {
+        show: true,
+        position: 'bottom',
+        distance: 2,
+        formatter: '{b}',
+        fontSize: 8,
+        color: '#fff'
+      },
+      edgeLabel: {
+        show: false
+      },
+      lineStyle: {
+        width: 1.5,
+        curveness: 0.1,
+        color: 'source'
+      },
+      emphasis: {
+        focus: 'adjacency',
+        lineStyle: {
+          width: 2
+        }
+      },
+      data: nodesWithFixedPositions,
+      links: filteredData.value.links.map(link => ({
+        ...link,
+        lineStyle: {
+          color: getLinkColor(link),
+          width: getLinkWidth(link) * 0.7,
+          type: link.status === 'warning' ? 'dashed' : 'solid'
+        }
+      }))
+    }]
+  };
+
+  chartInstance.setOption(option, true);
+
+  // 添加鼠标事件
+  chartInstance.off('mouseover');
+  chartInstance.off('mouseout');
+  
+  chartInstance.on('mouseover', (params) => {
+    if (params.dataType === 'node') {
+      hoverNode.value = params.data;
+    }
+  });
+  
+  chartInstance.on('mouseout', () => {
+    hoverNode.value = null;
+  });
+};
+
+// 节点尺寸
+const getCompactSymbolSize = (node) => {
+  const baseSizes = {
+    'thermal': 20, 'hydro': 18, 'wind': 16, 'solar': 16,
+    'substation-500': 18, 'substation-220': 16, 'substation-110': 14,
+    'load-center': 16
+  };
+  return baseSizes[node.category] || 15;
+};
+
+// 节点颜色和符号
+const getNodeColor = (node) => {
+  const colorMap = {
+    'thermal': '#ff6b6b', 'hydro': '#4ecdc4', 'wind': '#74c0fc', 'solar': '#ffd43b',
+    'substation-500': '#4ecdc4', 'substation-220': '#45b7d1', 'substation-110': '#f9c74f',
+    'load-center': '#22c55e'
+  };
+  return colorMap[node.category] || '#999';
+};
+
+const getNodeSymbol = (node) => {
+  const symbolMap = {
+    'thermal': 'circle', 'hydro': 'circle', 'wind': 'circle', 'solar': 'circle',
+    'substation-500': 'rect', 'substation-220': 'rect', 'substation-110': 'rect',
+    'load-center': 'triangle'
+  };
+  return symbolMap[node.category] || 'circle';
+};
+
+const getLinkColor = (link) => {
+  const colorMap = {
+    'normal': 'rgba(255, 255, 255, 0.4)',
+    'warning': '#eab308',
+    'error': '#ef4444'
+  };
+  return colorMap[link.status] || '#fff';
+};
+
+const getLinkWidth = (link) => {
+  return 0.8 + (link.value / 100) * 1.5;
+};
+
+// 控制功能
 const zoomIn = () => {
-  scale.value = Math.min(scale.value + 0.1, 2);
-  updateViewBox();
+  chartInstance?.dispatchAction({ type: 'zoom', scale: 1.2 });
 };
 
 const zoomOut = () => {
-  scale.value = Math.max(scale.value - 0.1, 0.5);
-  updateViewBox();
+  chartInstance?.dispatchAction({ type: 'zoom', scale: 0.8 });
 };
 
 const resetView = () => {
-  scale.value = 1;
-  translateX.value = 0;
-  translateY.value = 0;
-  updateViewBox();
+  chartInstance?.dispatchAction({ type: 'restore' });
 };
 
-const updateViewBox = () => {
-  const newWidth = svgWidth.value / scale.value;
-  const newHeight = svgHeight.value / scale.value;
-  const newX = -newWidth / 2 + translateX.value;
-  const newY = -newHeight / 2 + translateY.value;
-  viewBox.value = `${newX} ${newY} ${newWidth} ${newHeight}`;
-};
-
-// 拖拽相关函数
-const handleMouseDown = (e) => {
-  if (e.target.tagName === 'svg') {
-    isDragging.value = true;
-    dragStart.value = {
-      x: e.clientX - translateX.value,
-      y: e.clientY - translateY.value
-    };
-    svgContainer.value.style.cursor = 'grabbing';
-  }
-};
-
-const handleMouseMove = (e) => {
-  if (isDragging.value) {
-    translateX.value = e.clientX - dragStart.value.x;
-    translateY.value = e.clientY - dragStart.value.y;
-    updateViewBox();
-  }
-};
-
-const handleMouseUp = () => {
-  isDragging.value = false;
-  svgContainer.value.style.cursor = 'grab';
-};
-
-// 节点选择函数
-const selectNode = (type, index) => {
-  if (type === 'plant') {
-    selectedNode.value = powerPlants.value[index];
-  } else if (type === 'substation') {
-    selectedNode.value = substations.value[index];
-  } else if (type === 'load') {
-    selectedNode.value = loadCenters.value[index];
-  }
-};
-
-const deselectNode = () => {
-  selectedNode.value = null;
-};
-
-const handleSvgClick = () => {
-  deselectNode();
-};
-
-// 格式化状态显示
-const formatStatus = (status) => {
-  const statusMap = {
-    normal: '正常',
-    warning: '预警',
-    error: '故障'
+// 辅助函数
+const getNodeType = (node) => {
+  const typeMap = {
+    'thermal': '火电', 'hydro': '水电', 'wind': '风电', 'solar': '光伏',
+    'substation-500': '变电', 'substation-220': '变电', 'substation-110': '变电',
+    'load-center': '负荷'
   };
+  return typeMap[node.category] || '节点';
+};
+
+const formatStatus = (status) => {
+  const statusMap = { normal: '正常', warning: '预警', error: '故障' };
   return statusMap[status] || status;
 };
 
-// 获取节点颜色
-const getNodeColor = (status) => {
-  const colorMap = {
-    normal: 'rgba(0, 204, 102, 0.7)',
-    warning: 'rgba(255, 153, 0, 0.7)',
-    error: 'rgba(255, 68, 68, 0.7)'
-  };
-  return colorMap[status] || 'rgba(100, 100, 100, 0.7)';
-};
+// WebSocket连接
+const connectWebSocket = () => {
+  socket = io("http://localhost:8081", {
+    transports: ['websocket'],
+    withCredentials: true
+  });
 
-// 获取线路颜色
-const getLineColor = (line) => {
-  if (line.status === 'error') return 'rgba(255, 68, 68, 0.8)';
-  if (line.status === 'warning') return 'rgba(255, 153, 0, 0.8)';
-  
-  // 正常状态下根据负载调整颜色
-  if (line.load > 70) return 'rgba(255, 204, 0, 0.8)';
-  return 'rgba(0, 204, 102, 0.8)';
-};
+  socket.on("connect", () => {
+    console.log("✅ 拓扑图连接成功");
+    socket.emit('request_topology_data');
+  });
 
-// 获取节点类型
-const getNodeType = () => {
-  if (powerPlants.value.includes(selectedNode.value)) return '发电站';
-  if (substations.value.includes(selectedNode.value)) return '变电站';
-  if (loadCenters.value.includes(selectedNode.value)) return '负荷中心';
-  return '未知';
-};
+  socket.on("topology_data", (data) => {
+    topologyData.value = data;
+    updateChart();
+  });
 
-// 模拟数据更新
-const updateNodeStatus = () => {
-  const now = new Date().toLocaleTimeString();
-  
-  // 随机更新一些节点状态
-  if (Math.random() > 0.7) {
-    const randomPlant = powerPlants.value[Math.floor(Math.random() * powerPlants.value.length)];
-    randomPlant.output = Math.floor(Math.random() * 300) + 500;
-    randomPlant.lastUpdate = now;
-  }
-  
-  if (Math.random() > 0.7) {
-    const randomLoad = loadCenters.value[Math.floor(Math.random() * loadCenters.value.length)];
-    randomLoad.load = Math.floor(Math.random() * 200) + 300;
-    randomLoad.lastUpdate = now;
-  }
-  
-  // 随机更新线路负载
-  lines.value.forEach(line => {
-    if (Math.random() > 0.7) {
-      line.load = Math.min(100, Math.max(30, line.load + (Math.random() * 10 - 5)));
-      // 根据负载自动更新状态
-      if (line.load > 90) {
-        line.status = 'error';
-      } else if (line.load > 75) {
-        line.status = 'warning';
-      } else {
-        line.status = 'normal';
-      }
-    }
+  socket.on("topology_update", (data) => {
+    topologyData.value = data;
+    updateChart();
+  });
+
+  socket.on("connect_error", (err) => {
+    console.error("❌ 连接错误:", err.message);
   });
 };
 
-// 初始化事件监听
+// 初始化
 onMounted(() => {
-  const container = svgContainer.value;
-  container.addEventListener('mousedown', handleMouseDown);
-  document.addEventListener('mousemove', handleMouseMove);
-  document.addEventListener('mouseup', handleMouseUp);
-  
-  // 每5秒更新一次数据
-  setInterval(updateNodeStatus, 5000);
-  
-  // 初始化最后更新时间
-  const now = new Date().toLocaleTimeString();
-  [...powerPlants.value, ...substations.value, ...loadCenters.value].forEach(node => {
-    node.lastUpdate = now;
-  });
+  initChart();
+  connectWebSocket();
+  window.addEventListener('resize', () => chartInstance?.resize());
 });
 
-// 清理事件监听
-const cleanup = () => {
-  document.removeEventListener('mousemove', handleMouseMove);
-  document.removeEventListener('mouseup', handleMouseUp);
-};
+onBeforeUnmount(() => {
+  socket?.disconnect();
+  chartInstance?.dispose();
+});
 
-// 监听组件卸载
-watch(() => true, cleanup, { once: true });
+// 监听筛选变化
+watch(activeFilter, updateChart);
+watch(topologyData, updateChart, { deep: true });
 </script>
 
 <style scoped>
-.topology-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+.grid-topology-compact {
+  height: 280px; /* 进一步减少高度 */
+  position: relative;
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 6px;
+  overflow: hidden;
 }
 
-.topology-controls {
+.compact-controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
-  margin-bottom: 10px;
-}
-
-.control-btn {
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
-  border-radius: 4px;
-  padding: 4px 10px;
-  cursor: pointer;
-  font-size: 12px;
-  margin-right: 8px;
-  transition: all 0.2s;
-}
-
-.control-btn:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-.status-legend {
-  display: flex;
-  gap: 15px;
-  font-size: 12px;
-  color: #9eabb3;
-}
-
-.status-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  margin-right: 5px;
-}
-
-.status-dot.normal { background-color: rgba(0, 204, 102, 0.8); }
-.status-dot.warning { background-color: rgba(255, 153, 0, 0.8); }
-.status-dot.error { background-color: rgba(255, 68, 68, 0.8); }
-
-.topology-svg-container {
-  flex: 1;
-  overflow: hidden;
-  cursor: grab;
-  position: relative;
-}
-
-.power-line {
-  transition: all 1s ease;
-}
-
-.substation-node, .power-plant-node, .load-center-node {
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.substation-node:hover, .power-plant-node:hover, .load-center-node:hover {
-  filter: brightness(1.3);
-  transform: scale(1.05);
-}
-
-.node-details {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  background-color: rgba(11, 19, 43, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  padding: 15px;
-  width: 220px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 10;
-}
-
-.node-details h3 {
-  margin: 0 0 10px 0;
-  font-size: 16px;
-  color: #e2e8f0;
-  padding-bottom: 8px;
+  padding: 8px 12px;
+  background: rgba(30, 41, 59, 0.8);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.detail-item {
+.controls-left {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 13px;
-  color: #94a3b8;
+  align-items: center;
+  gap: 10px;
 }
 
-.detail-item span:first-child {
-  color: #cbd5e1;
+.mini-buttons {
+  display: flex;
+  gap: 4px;
 }
 
-.status-label {
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 12px;
-  color: #fff;
-}
-
-.status-label.normal { background-color: rgba(0, 204, 102, 0.7); }
-.status-label.warning { background-color: rgba(255, 153, 0, 0.7); }
-.status-label.error { background-color: rgba(255, 68, 68, 0.7); }
-
-.close-details {
-  width: 100%;
-  background-color: rgba(255, 255, 255, 0.1);
+.mini-btn {
+  background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: #fff;
-  border-radius: 4px;
-  padding: 5px;
-  margin-top: 10px;
+  border-radius: 3px;
+  padding: 4px 6px;
   cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.mini-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.controls-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-indicators {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.status-dot.normal { background: #22c55e; }
+.status-dot.warning { background: #eab308; }
+.status-dot.error { background: #ef4444; }
+
+.status-count {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-right: 4px;
+}
+
+.filter-select {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 3px;
+  padding: 4px 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.filter-select option {
+  background: rgba(30, 41, 59, 0.9);
+  color: #fff;
+}
+
+.compact-chart-container {
+  height: calc(100% - 40px); /* 只减去控制栏高度 */
+  width: 100%;
+}
+
+.node-tooltip {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 11px;
+  backdrop-filter: blur(5px);
+  z-index: 100;
+  max-width: 180px;
+}
+
+.tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.tooltip-header strong {
+  color: #fff;
   font-size: 12px;
 }
 
-.close-details:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+.tooltip-content {
+  color: #94a3b8;
+  font-size: 10px;
 }
+
+.status-badge {
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.status-badge.normal { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+.status-badge.warning { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+.status-badge.error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
 </style>

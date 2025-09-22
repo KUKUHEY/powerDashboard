@@ -220,9 +220,86 @@ setInterval(() => {
 }, 10000); // 10秒更新一次
 
 
+// 电网拓扑数据
+const GRID_TOPOLOGY_DATA = {
+  nodes: [
+    { id: 'plant-1', name: '火电厂A', category: 'thermal', value: 1200, status: 'normal', symbolSize: 40 },
+    { id: 'plant-2', name: '水电站B', category: 'hydro', value: 800, status: 'normal', symbolSize: 35 },
+    { id: 'plant-3', name: '风电场C', category: 'wind', value: 300, status: 'warning', symbolSize: 30 },
+    { id: 'plant-4', name: '光伏站D', category: 'solar', value: 200, status: 'normal', symbolSize: 30 },
+    { id: 'sub-1', name: '变电一站', category: 'substation-500', value: 500, status: 'normal', symbolSize: 35 },
+    { id: 'sub-2', name: '变电二站', category: 'substation-500', value: 500, status: 'normal', symbolSize: 35 },
+    { id: 'sub-3', name: '变电三站', category: 'substation-220', value: 220, status: 'warning', symbolSize: 30 },
+    { id: 'sub-4', name: '变电四站', category: 'substation-220', value: 220, status: 'normal', symbolSize: 30 },
+    { id: 'sub-5', name: '变电五站', category: 'substation-110', value: 110, status: 'error', symbolSize: 25 },
+    { id: 'load-1', name: '城市A', category: 'load-center', value: 800, status: 'normal', symbolSize: 30 },
+    { id: 'load-2', name: '工业区B', category: 'load-center', value: 600, status: 'normal', symbolSize: 28 },
+    { id: 'load-3', name: '城市C', category: 'load-center', value: 900, status: 'warning', symbolSize: 32 },
+    { id: 'load-4', name: '农村D', category: 'load-center', value: 300, status: 'normal', symbolSize: 25 }
+  ],
+  links: [
+    { source: 'plant-1', target: 'sub-1', value: 75, status: 'normal' },
+    { source: 'plant-2', target: 'sub-1', value: 65, status: 'normal' },
+    { source: 'plant-3', target: 'sub-2', value: 85, status: 'warning' },
+    { source: 'plant-4', target: 'sub-2', value: 45, status: 'normal' },
+    { source: 'sub-1', target: 'sub-2', value: 60, status: 'normal' },
+    { source: 'sub-1', target: 'sub-3', value: 55, status: 'normal' },
+    { source: 'sub-2', target: 'sub-4', value: 70, status: 'normal' },
+    { source: 'sub-3', target: 'sub-5', value: 95, status: 'error' },
+    { source: 'sub-1', target: 'load-1', value: 80, status: 'normal' },
+    { source: 'sub-2', target: 'load-2', value: 65, status: 'normal' },
+    { source: 'sub-3', target: 'load-3', value: 90, status: 'warning' },
+    { source: 'sub-4', target: 'load-4', value: 40, status: 'normal' }
+  ]
+};
+
+// 模拟拓扑数据更新
+setInterval(() => {
+  GRID_TOPOLOGY_DATA.nodes.forEach(node => {
+    if (Math.random() > 0.9) {
+      if (node.category.includes('plant')) {
+        node.value = Math.max(100, node.value + Math.round(Math.random() * 200 - 100));
+      } else if (node.category.includes('load')) {
+        node.value = Math.max(50, node.value + Math.round(Math.random() * 150 - 75));
+      }
+
+      if (Math.random() > 0.95) {
+        const statuses = ['normal', 'warning', 'error'];
+        node.status = statuses[Math.floor(Math.random() * statuses.length)];
+      }
+
+      node.lastUpdate = new Date().toISOString();
+    }
+  });
+
+  GRID_TOPOLOGY_DATA.links.forEach(link => {
+    if (Math.random() > 0.8) {
+      link.value = Math.min(100, Math.max(20, link.value + Math.round(Math.random() * 20 - 10)));
+
+      if (link.value > 90) {
+        link.status = 'error';
+      } else if (link.value > 75) {
+        link.status = 'warning';
+      } else {
+        link.status = 'normal';
+      }
+    }
+  });
+
+  io.emit('topology_update', GRID_TOPOLOGY_DATA);
+  console.log('发送拓扑数据更新');
+}, 5000);
+
+
 // 处理告警相关事件
 io.on('connection', (socket) => {
   console.log('客户端已连接:', socket.id);
+
+  // 处理拓扑数据请求
+  socket.on('request_topology_data', () => {
+    socket.emit('topology_data', GRID_TOPOLOGY_DATA);
+    console.log('发送拓扑数据');
+  });
 
   // 处理年份数据请求
   socket.on('request_year_data', (year) => {
