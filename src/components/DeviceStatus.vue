@@ -2,8 +2,8 @@
   <div class="device-status">
     <div class="device-value">
       <ul>
-        <li>{{ formatNumber(deviceData.online) }}</li>
-        <li>{{ deviceData.rate }}%</li>
+        <li>{{ formattedOnline}}</li>
+        <li>{{ formattedRate }}</li>
       </ul>
     </div>
     
@@ -17,56 +17,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, onUnmounted } from 'vue';
-import { io } from 'socket.io-client';
+import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { useDeviceStore } from '../stores/device'
+import { useWebSocketStore } from '../stores/websocket'
 
-const deviceData = ref({
-  online: 1453,
-  rate: 96.9
-});
+const deviceStore = useDeviceStore()
+const wsStore = useWebSocketStore()
 
-let socket = null;
-let prevOnline = 1453;
-
-// 数字格式化
-const formatNumber = (num) => {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-};
-
-// 计算趋势
-const trendClass = computed(() => {
-  if (deviceData.value.online > prevOnline) return 'trend-up';
-  if (deviceData.value.online < prevOnline) return 'trend-down';
-  return 'trend-stable';
-});
-
-const trendIcon = computed(() => {
-  if (deviceData.value.online > prevOnline) return '↗';
-  if (deviceData.value.online < prevOnline) return '↘';
-  return '→';
-});
+const formattedOnline = deviceStore.formattedOnline
+const formattedRate = deviceStore.formattedRate
 
 onMounted(() => {
-  socket = io("http://localhost:8081", {
-    transports: ['websocket'],
-    withCredentials: true
-  });
-
-  socket.on("connect", () => {
-    console.log("✅ 设备状态连接成功");
-  });
-
-  socket.on("device_status", (data) => {
-    prevOnline = deviceData.value.online;
-    deviceData.value = {
-      online: data.online,
-      rate: data.rate
-    };
-  });
+  deviceStore.init()
 });
 
 onUnmounted(() => {
-  socket && socket.disconnect();
+  wsStore.off('device_status', deviceStore.updateStatus)
 });
 </script>
 

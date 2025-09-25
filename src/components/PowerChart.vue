@@ -95,7 +95,7 @@ onMounted(() => {
   initChart()
   
   // 初始化 WebSocket 连接
-  wsStore.connect()
+  // wsStore.connect()
   // 初始化数据监听
   powerStore.init()
   
@@ -112,6 +112,9 @@ onBeforeUnmount(() => {
   wsStore.off('disconnect', powerStore.handleDisconnect)
   
   chartInstance && chartInstance.dispose()
+  window.removeEventListener("resize", () => {
+    chartInstance && chartInstance.resize();
+  });
 })
 </script>
 

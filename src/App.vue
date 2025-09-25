@@ -54,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import PowerChart from './components/PowerChart.vue';
 import AlarmList from './components/AlarmList.vue';
 import GridTopology from './components/GridTopology.vue';
@@ -65,25 +65,32 @@ import { useWebSocketStore } from './stores/websocket'
 
 const wsStore = useWebSocketStore()
 
-const currentTime = ref('');
+const currentTime = ref('')
+
+const connectionStatus = computed(() => wsStore.connectionStatus)
+const connectionText = computed(() => {
+  switch (wsStore.connectionStatus) {
+    case 'connected': return '已连接'
+    case 'error': return '连接错误'
+    default: return '未连接'
+  }
+})
 
 const updateTime = () => {
   currentTime.value = new Date().toLocaleString();
 };
 
 onMounted(() => {
-  // 应用启动时连接 WebSocket
-  wsStore.connect()
-
-  
   updateTime();
   setInterval(updateTime, 1000);
+    //应用启动时连接 WebSocket
+  wsStore.connect()
 });
 
 onUnmounted(() => {
   // 应用卸载时断开连接
   wsStore.disconnect()
-})
+});
 
 </script>
 

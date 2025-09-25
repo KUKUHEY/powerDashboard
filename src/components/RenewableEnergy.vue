@@ -45,14 +45,14 @@
       <div class="stat-item">
         <div class="stat-icon">📊</div>
         <div class="stat-content">
-          <div class="stat-value">{{ dailyGeneration }} MWh</div>
+          <div class="stat-value">{{ formattedDailyGeneration  }} MWh</div>
           <div class="stat-label">今日发电</div>
         </div>
       </div>
       <div class="stat-item">
         <div class="stat-icon">🌿</div>
         <div class="stat-content">
-          <div class="stat-value">{{ co2Reduction }} 吨</div>
+          <div class="stat-value">{{ formattedCo2Reduction  }} 吨</div>
           <div class="stat-label">CO₂减排</div>
         </div>
       </div>
@@ -62,161 +62,34 @@
 
 <script setup>
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue';
-import { io } from 'socket.io-client';
+// import { io } from 'socket.io-client';
+import { useRenewableStore } from '../stores/renewable'
+import { useWebSocketStore } from '../stores/websocket'
 
-const energyData = ref({
-  solar: 125.8,
-  wind: 283.5,
-  hydro: 156.2,
-  biomass: 45.3
-});
+const renewableStore = useRenewableStore();
+const wsStore = useWebSocketStore();
 
-// 装机容量 (MW)
-const capacities = ref({
-  solar: 200,
-  wind: 350,
-  hydro: 180,
-  biomass: 60
-});
+// 从 store 获取计算属性
+const energyTypes = renewableStore.energyTypes
+const totalCapacity = renewableStore.totalCapacity
+const totalOutput = renewableStore.totalOutput
+const renewablePercentage = renewableStore.renewablePercentage
+const formattedDailyGeneration = renewableStore.formattedDailyGeneration
+const formattedCo2Reduction = renewableStore.formattedCo2Reduction
 
-// 记录上一次的数据用于计算趋势
-const prevEnergyData = ref({...energyData.value});
+// 获取趋势类和箭头
+const getTrendClass = (type) => renewableStore.getTrend(type)
+const getTrendArrow = (type) => renewableStore.getTrendArrow(type)
 
-// 趋势状态
-const trends = ref({
-  solar: 'stable',
-  wind: 'stable',
-  hydro: 'stable',
-  biomass: 'stable'
-});
-
-// 今日累计发电量 (MWh)
-const dailyGeneration = ref(0);
-// CO₂减排量 (吨)
-const co2Reduction = ref(0);
-
-let socket = null;
-let updateInterval = null;
-
-const energyTypes = computed(() => [
-  { 
-    name: '太阳能', 
-    value: energyData.value.solar, 
-    capacity: capacities.value.solar,
-    color: '#FFD700'
-  },
-  { 
-    name: '风能', 
-    value: energyData.value.wind, 
-    capacity: capacities.value.wind,
-    color: '#87CEEB'
-  },
-  { 
-    name: '水电', 
-    value: energyData.value.hydro, 
-    capacity: capacities.value.hydro,
-    color: '#4169E1'
-  },
-  { 
-    name: '生物质', 
-    value: energyData.value.biomass, 
-    capacity: capacities.value.biomass,
-    color: '#32CD32'
-  }
-]);
-
-const totalCapacity = computed(() => {
-  return Object.values(capacities.value).reduce((sum, cap) => sum + cap, 0);
-});
-
-const totalOutput = computed(() => {
-  return Object.values(energyData.value).reduce((sum, output) => sum + output, 0);
-});
-
-const renewablePercentage = computed(() => {
-  return Math.round((totalOutput.value / totalCapacity.value) * 100);
-});
-
-// 监听数据变化，计算趋势
-watch(energyData, (newData, oldData) => {
-  Object.keys(newData).forEach(key => {
-    const change = newData[key] - oldData[key];
-    if (change > 0.5) {
-      trends.value[key] = 'up';
-    } else if (change < -0.5) {
-      trends.value[key] = 'down';
-    } else {
-      trends.value[key] = 'stable';
-    }
-  });
-  prevEnergyData.value = {...oldData};
-}, { deep: true });
-
-const getTrendClass = (type) => {
-  const key = type === '太阳能' ? 'solar' : 
-             type === '风能' ? 'wind' :
-             type === '水电' ? 'hydro' : 'biomass';
-  return trends.value[key];
-};
-
-const getTrendArrow = (type) => {
-  const key = type === '太阳能' ? 'solar' : 
-             type === '风能' ? 'wind' :
-             type === '水电' ? 'hydro' : 'biomass';
-  
-  switch(trends.value[key]) {
-    case 'up': return '↑';
-    case 'down': return '↓';
-    default: return '→';
-  }
-};
-
-// 更新累计发电量和减排量
-const updateAccumulatedData = () => {
-  // 每10秒更新一次，将功率转换为电量 (MW -> MWh/10s)
-  const hoursIn10Seconds = 10 / 3600;
-  const energyGenerated = totalOutput.value * hoursIn10Seconds;
-  
-  dailyGeneration.value = parseFloat((dailyGeneration.value + energyGenerated).toFixed(1));
-  
-  // 计算CO₂减排量 (假设每MWh减排0.8吨CO₂)
-  const co2ReductionPerMWh = 0.8;
-  co2Reduction.value = parseFloat((dailyGeneration.value * co2ReductionPerMWh).toFixed(1));
-};
 
 onMounted(() => {
-  socket = io("http://localhost:8081", {
-    transports: ['websocket'],
-    withCredentials: true
-  });
-
-  socket.on("connect", () => {
-    console.log("✅ 新能源数据连接成功");
-  });
-
-  socket.on("renewable_update", (data) => {
-    energyData.value = {
-      solar: data.solar,
-      wind: data.wind,
-      hydro: data.hydro,
-      biomass: data.biomass
-    };
-    
-    if (data.capacity) {
-      capacities.value = data.capacity;
-    }
-  });
-
-  updateInterval = setInterval(updateAccumulatedData, 10000);
+  // 初始化新能源数据监听
+  renewableStore.init()
 });
 
 onUnmounted(() => {
-  if (updateInterval) {
-    clearInterval(updateInterval);
-  }
-  if (socket) {
-    socket.disconnect();
-  }
+  // 清理事件监听
+  wsStore.off("renewable_update", renewableStore.updateEnergyData)
 });
 </script>
 

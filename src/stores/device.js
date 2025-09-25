@@ -22,16 +22,12 @@ export const useDeviceStore = defineStore('device', {
   },
 
   getters: {
-    trendClass: (state) => {
-      if (state.online > state.prevOnline) return 'trend-up'
-      if (state.online < state.prevOnline) return 'trend-down'
-      return 'trend-stable'
+    formattedOnline: (state) => {
+      return state.online.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
     },
 
-    trendIcon: (state) => {
-      if (state.online > state.prevOnline) return '↗'
-      if (state.online < state.prevOnline) return '↘'
-      return '→'
+    formattedRate: (state) => {
+      return `${state.rate}%`
     }
   }
 })

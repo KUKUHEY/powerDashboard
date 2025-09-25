@@ -26,23 +26,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, onBeforeUnmount } from "vue";
+import { ref, onMounted, computed, onBeforeUnmount,watch } from "vue";
 import * as echarts from "echarts";
-import { io } from "socket.io-client";
+import { useHeatmapStore } from '../stores/heatmap'
+import { useWebSocketStore } from '../stores/websocket'
 
 const chartRef = ref(null);
 let chartInstance = null; 
-let socket = null; 
-const selectedYear = ref(null);
-const chartData = ref([]);
-const loading = ref(false);
+const heatmapStore = useHeatmapStore()
+const wsStore = useWebSocketStore()
 
-const availableYears = ["2020", "2021", "2022", "2023", "2024"];
-
-// 计算总负荷
-const totalLoad = computed(() => {
-  return chartData.value.reduce((sum, item) => sum + item.value, 0);
-});
+// 从 store 获取状态
+const availableYears = computed(() => heatmapStore.availableYears)
+const selectedYear = computed(() => heatmapStore.selectedYear)
+const chartData = computed(() => heatmapStore.chartData)
+const loading = computed(() => heatmapStore.loading)
+const formattedTotalLoad = computed(() => heatmapStore.formattedTotalLoad)
+const status = computed(() => heatmapStore.status)
 
 // 数字格式化
 const formatNumber = (num) => {
@@ -64,20 +64,22 @@ const initChart = async () => {
     updateChart();
   } catch (error) {
     console.error("地图数据加载失败:", error);
-    loading.value = false;
+    heatmapStore.handleConnectError(error);
   }
 };
 
 // 更新图表
 const updateChart = () => {
-  if (!chartInstance) return;
+  if (!chartInstance || !heatmapStore.hasData) return;
 
   const option = {
     tooltip: {
       trigger: "item",
       formatter: params => {
-        return `${params.name}<br/>负荷: ${formatNumber(params.value || 0)} MW<br/>占比: ${((params.value / totalLoad.value) * 100).toFixed(1)}%`;
-      }
+        const value = params.value || 0
+        const percentage = heatmapStore.totalLoad > 0 ? 
+          ((value / heatmapStore.totalLoad) * 100).toFixed(1) : 0
+        return `${params.name}<br/>负荷: ${formatNumber(value)} MW<br/>占比: ${percentage}%`}
     },
     visualMap: {
       min: 1000,
@@ -117,107 +119,26 @@ const updateChart = () => {
 
 // 选择年份
 const selectYear = (year) => {
-  if (selectedYear.value === year) return;
-  
-  selectedYear.value = year;
-  loading.value = true;
-  
-  // 检查socket是否已连接
-  if (socket && socket.connected) {
-    socket.emit('request_year_data', year);
-  } else {
-    console.error("WebSocket未连接");
-    loading.value = false;
-    
-    // 模拟数据作为备选方案
-    setTimeout(() => {
-      generateMockData(year);
-      loading.value = false;
-    }, 500);
+  heatmapStore.selectYear(year);
+};
+
+// 监听数据变化，自动更新图表
+watch(chartData, () => {
+  updateChart()
+}, { deep: true });
+
+// 监听加载状态变化
+watch(loading, (newLoading) => {
+  if (!newLoading && heatmapStore.hasData) {
+    updateChart();
   }
-};
-
-// 生成模拟数据（备选方案）
-const generateMockData = (year) => {
-  const baseData = {
-    "2020": 3000, "2021": 3200, "2022": 3500, "2023": 3800, "2024": 4000
-  };
-  
-  const baseValue = baseData[year] || 3500;
-  
-  const mockData = [
-    { name: "北京市", value: Math.round(baseValue * 0.9 + Math.random() * 500) },
-    { name: "天津市", value: Math.round(baseValue * 0.7 + Math.random() * 400) },
-    { name: "河北省", value: Math.round(baseValue * 1.2 + Math.random() * 600) },
-    { name: "山西省", value: Math.round(baseValue * 1.1 + Math.random() * 500) },
-    { name: "内蒙古自治区", value: Math.round(baseValue * 0.8 + Math.random() * 400) },
-    { name: "辽宁省", value: Math.round(baseValue * 1.3 + Math.random() * 600) },
-    { name: "吉林省", value: Math.round(baseValue * 0.9 + Math.random() * 400) },
-    { name: "黑龙江省", value: Math.round(baseValue * 1.1 + Math.random() * 500) },
-    { name: "上海市", value: Math.round(baseValue * 1.4 + Math.random() * 700) },
-    { name: "江苏省", value: Math.round(baseValue * 1.5 + Math.random() * 800) },
-    // 可以继续添加其他省份...
-  ];
-  
-  chartData.value = mockData;
-  updateChart();
-};
-
-// 处理年份数据
-const handleYearData = (data) => {
-  chartData.value = data;
-  updateChart();
-  loading.value = false;
-};
+});
 
 onMounted(async () => {
   await initChart();
 
-  try {
-    socket = io("http://localhost:8081", { 
-      transports: ["websocket"],
-      withCredentials: true,
-      timeout: 5000
-    });
-
-    socket.on("connect", () => {
-      console.log("✅ 区域数据WebSocket连接成功");
-      // 初始加载当前选中年份的数据
-      selectYear(selectedYear.value);
-    });
-
-    socket.on("year_data", (data) => {
-      if (data.year === selectedYear.value) {
-        handleYearData(data.data);
-      }
-    });
-
-    socket.on("year_data_error", (error) => {
-      console.error("数据加载错误:", error);
-      loading.value = false;
-      // 使用模拟数据作为备选
-      generateMockData(selectedYear.value);
-    });
-
-    socket.on("connect_error", (err) => {
-      console.error("❌ 区域数据连接错误:", err.message);
-      loading.value = false;
-      // 使用模拟数据作为备选
-      generateMockData(selectedYear.value);
-    });
-
-    // 设置连接超时
-    setTimeout(() => {
-      if (!socket?.connected) {
-        console.warn("WebSocket连接超时，使用模拟数据");
-        generateMockData(selectedYear.value);
-      }
-    }, 3000);
-
-  } catch (error) {
-    console.error("WebSocket初始化失败:", error);
-    generateMockData(selectedYear.value);
-  }
+  // 初始化热力图数据监听
+  heatmapStore.init();
 
   window.addEventListener("resize", () => {
     chartInstance && chartInstance.resize();
@@ -225,12 +146,19 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
-  if (socket) {
-    socket.disconnect();
-  }
+  // 清理事件监听
+  wsStore.off('year_data', heatmapStore.handleYearData);
+  wsStore.off('year_data_error', heatmapStore.handleYearDataError);
+  wsStore.off('connect_error', heatmapStore.handleConnectError);
+
   if (chartInstance) {
     chartInstance.dispose();
   }
+
+   window.removeEventListener("resize", () => {
+    chartInstance && chartInstance.resize()
+  });
+
 });
 </script>
 

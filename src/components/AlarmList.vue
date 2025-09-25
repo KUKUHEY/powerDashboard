@@ -104,7 +104,7 @@ const handleAlarm = (alarmId) => {
 
 onMounted(() => {
   // 初始化 WebSocket 连接
-  wsStore.connect()
+  // wsStore.connect()
   // 初始化告警监听
   alarmStore.init()
 })
