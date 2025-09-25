@@ -13,7 +13,7 @@
         </button>
       </div>
       <div class="year-info" v-if="selectedYear">
-        当前显示: {{ selectedYear }}年数据 | 全国总负荷: {{ formatNumber(totalLoad) }} MW
+        当前显示: {{ selectedYear }}年数据 | 全国总负荷: {{ formattedTotalLoad }} MW
       </div>
     </div>
 

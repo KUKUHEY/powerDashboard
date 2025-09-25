@@ -51,7 +51,8 @@ const updateChart = () => {
         color: '#9eabb3',
         formatter: function(value) {
           // 只显示分钟和秒，避免过于拥挤
-          return value.substring(11, 19)
+          const date = new Date(value);
+          return date.toLocaleTimeString();
         }
       }
     },

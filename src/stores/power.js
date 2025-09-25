@@ -1,4 +1,3 @@
-// src/stores/power.js
 import { defineStore } from 'pinia'
 import { useWebSocketStore } from './websocket'
 
